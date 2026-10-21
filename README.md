@@ -4,7 +4,7 @@
 
 SheetGuard finds common structural regressions in OOXML spreadsheets before release. It inspects formula element counts, data validation rules and worksheet protection, compares workbooks against a previous baseline, and outputs machine-readable reports suitable for CI.
 
-**Status:** v0.1.0 alpha · Python 3.10+ · MIT · zero runtime dependencies.
+**Status:** v0.1.1 alpha · Python 3.10+ · MIT · zero runtime dependencies.
 
 ## Why this exists
 
