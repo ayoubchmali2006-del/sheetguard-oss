@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sheetguard-oss"
+version = "0.1.0"
+description = "Read-only XLSX release QA and regression policy checks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+keywords = ["excel", "xlsx", "ooxml", "quality-assurance", "spreadsheet", "ci"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.scripts]
+sheetguard = "sheetguard_oss.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
