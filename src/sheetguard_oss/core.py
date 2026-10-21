@@ -40,6 +40,8 @@ class Sheet:
     validations: int
     formulas: int
     cached_errors: int
+    validation_refs: tuple[str, ...] = ()
+    formula_refs: tuple[str, ...] = ()
 
 
 @dataclass
@@ -178,6 +180,9 @@ def inspect(path: str | Path, *, require_protection: bool = False,
                 report.add("error", "MISSING_ROOT_REL", "Root relationships do not point to xl/workbook.xml")
                 return report
             workbook = _part(zf, "xl/workbook.xml", max_part)
+            if _name(workbook.tag) != "workbook":
+                report.add("error", "BAD_WORKBOOK_ROOT", "Workbook XML root is not workbook")
+                return report
             relationships = _relationships(zf, max_part)
             if any("externalLinks/" in p or p.endswith("externalLink.xml") for p in members):
                 report.add("warning", "EXTERNAL_LINK_PARTS", "Workbook includes external-link parts")
@@ -187,8 +192,13 @@ def inspect(path: str | Path, *, require_protection: bool = False,
             if not sheet_nodes:
                 report.add("error", "NO_SHEETS", "No workbook sheets declared")
                 return report
+            seen_sheet_names: set[str] = set()
             for entry in sheet_nodes:
                 name = entry.get("name", "(unnamed)")
+                if name.casefold() in seen_sheet_names:
+                    report.add("error", "DUPLICATE_SHEET_NAME", "Duplicate worksheet name", name)
+                    continue
+                seen_sheet_names.add(name.casefold())
                 state = entry.get("state", "visible")
                 rid = entry.get(f"{{{R}}}id") or entry.get(f"{{{STRICT_R}}}id")
                 if not rid or rid not in relationships:
@@ -214,24 +224,38 @@ def inspect(path: str | Path, *, require_protection: bool = False,
                 except ValueError as exc:
                     report.add("error", "MALFORMED_SHEET", str(exc), name)
                     continue
+                if _name(sheet_xml.tag) != "worksheet":
+                    report.add("error", "BAD_SHEET_ROOT", "Worksheet XML root is not worksheet", name)
+                    continue
                 formula_count = 0
                 validation_count = 0
                 cached_errors = 0
                 protected = False
+                validation_refs: list[str] = []
+                formula_refs: list[str] = []
                 for el in sheet_xml.iter():
                     tag = _name(el.tag)
                     if tag == "sheetProtection":
-                        protected = True
+                        # Element may exist with sheet="0": that does not enable protection.
+                        protected = el.get("sheet", "0").strip().lower() in ("1", "true")
                     elif tag == "dataValidation":
                         validation_count += 1
+                        refs = " ".join(el.get("sqref", "").split())
+                        if not refs:
+                            report.add("warning", "EMPTY_VALIDATION_SCOPE", "Validation has no cell range", name)
+                        validation_refs.append(refs)
                     elif tag == "f":
                         formula_count += 1
                         if FORMULA_ERROR.search(el.text or ""):
                             report.add("error", "BROKEN_FORMULA_REF", "Formula contains #REF!", name)
-                    elif tag == "c" and el.get("t") == "e":
-                        cached_errors += 1
+                    elif tag == "c":
+                        if el.get("t") == "e":
+                            cached_errors += 1
+                        if any(_name(child.tag) == "f" for child in el):
+                            formula_refs.append(el.get("r", ""))
                 report.sheets.append(Sheet(name, part_path, state, protected,
-                                           validation_count, formula_count, cached_errors))
+                                           validation_count, formula_count, cached_errors,
+                                           tuple(sorted(validation_refs)), tuple(sorted(formula_refs))))
                 report.total_formulas += formula_count
                 report.total_validations += validation_count
                 if cached_errors:
@@ -270,6 +294,12 @@ def compare(baseline: Report, current: Report) -> list[Finding]:
         if a.formulas > b.formulas:
             findings.append(Finding("warning", "FORMULAS_REDUCED",
                                     f"Formula elements dropped: {a.formulas} -> {b.formulas}", name))
+        if a.validations == b.validations and a.validation_refs != b.validation_refs:
+            findings.append(Finding("warning", "VALIDATION_SCOPE_CHANGED",
+                                    "Validation rule ranges changed despite the same rule count", name))
+        if a.formulas == b.formulas and a.formula_refs != b.formula_refs:
+            findings.append(Finding("warning", "FORMULA_CELLS_CHANGED",
+                                    "Formula cell locations changed despite the same formula count", name))
         if a.state != b.state:
             findings.append(Finding("info", "VISIBILITY_CHANGED",
                                     f"Sheet visibility changed: {a.state} -> {b.state}", name))
