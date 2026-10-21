@@ -22,7 +22,8 @@ def generate(path, protect=True, formulas=1, validations=1, broken=False,
     rels = f'<Relationships xmlns="{P}"><Relationship Id="rId1" Type="{R}/worksheet" Target="{"../../escape.xml" if bad_path else "worksheets/sheet1.xml"}"/></Relationships>'
     fs = "".join(f'<c r="A{i+1}"><f>{"#REF!+1" if broken else "1+2"}</f><v>3</v></c>' for i in range(formulas))
     rules = "".join('<dataValidation type="list" sqref="A1:A200"><formula1>"a,b"</formula1></dataValidation>' for _ in range(validations))
-    sheet = f'<worksheet xmlns="{S}">{"<sheetProtection sheet=\"1\"/>" if protect else ""}<sheetData><row r="1">{fs}</row></sheetData><dataValidations count="{validations}">{rules}</dataValidations></worksheet>'
+    protection = '<sheetProtection sheet="1"/>' if protect else ''
+    sheet = f'<worksheet xmlns="{S}">{protection}<sheetData><row r="1">{fs}</row></sheetData><dataValidations count="{validations}">{rules}</dataValidations></worksheet>'
     if dtd:
         sheet = '<!DOCTYPE worksheet [<!ENTITY x "unsafe">]>' + sheet
     with ZipFile(path, "w", ZIP_DEFLATED) as z:
