@@ -27,4 +27,4 @@ jobs:
           sheetguard examples/demo.xlsx --format json --output smoke-report.json
           python -c 'import json; r = json.load(open("smoke-report.json")); assert r["summary"]["sheets"] == 1 and r["summary"]["errors"] == 0'
       - name: Build import check
-        run: PYTHONPATH=src python -c 'import sheetguard_oss; print(sheetguard_oss.__version__)
+        run: PYTHONPATH=src python -c 'import sheetguard_oss; print(sheetguard_oss.__version__)'
