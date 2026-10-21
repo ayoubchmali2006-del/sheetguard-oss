@@ -11,7 +11,7 @@ import re
 from zipfile import BadZipFile, ZipFile
 import xml.etree.ElementTree as ET
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 P = "http://schemas.openxmlformats.org/package/2006/relationships"
